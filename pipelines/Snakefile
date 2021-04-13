@@ -1,0 +1,71 @@
+import json
+with open("../metadata/gtex_v8.custom.config") as instr:
+    gtex_conf = json.load(instr)
+
+results_dir = ["/cbscratch/franco/trans-eqtl/dev-pipeline/gtex_v8_SHAPEIT2_032021_rev_freeze/raw/summary_dev"]
+
+configfile: "config.enrichments.json"
+
+DHSTYPES=["dhsindex", "dhsmulti"]
+SNPGROUPS=["trans_eqtls", "trans_not_cis_eqtl", "trans_cis_eqtl"]
+
+def get_ciseqtl_inputs(wildcards):
+    ciseqtl_dir = "/cbscratch/franco/datasets/gtex_v8/expression/gtex_portal/eQTLs/GTEx_Analysis_v8_eQTL"
+    return f"{ciseqtl_dir}/{gtex_conf[wildcards.tshort]['fullname']}.v8.signif_variant_gene_pairs.txt.gz"
+
+rule all:
+    input:
+        # expand("{results_dir}/{tshort}/trans_not_cis_eqtl.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir),
+        # expand("{results_dir}/{tshort}/{dhstype}/background.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES),
+        # expand("{results_dir}/{tshort}/{dhstype}/enrichment.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES)
+        #expand("{results_dir}/{tshort}/trans_not_cis_eqtl.txt", tshort=["aa", "as"], results_dir=results_dir),
+        #expand("{results_dir}/{tshort}/{dhstype}/background.txt", tshort=["aa", "as"], results_dir=results_dir, dhstype=DHSTYPES),
+        expand("{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt", tshort=["aa"], results_dir=results_dir, dhstype=DHSTYPES, snpgroup=SNPGROUPS)
+
+rule find_trans_cis:
+    input:
+        cisfile=get_ciseqtl_inputs,
+        transfile="{results_dir}/{tshort}/trans_eqtls.txt"
+    output:
+        teqtl="{results_dir}/{tshort}/teqtl.list",
+        ceqtl="{results_dir}/{tshort}/ceqtl.list",
+        res1="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+    shell:
+        "cut -f 1 {input.transfile} | tail -n +2 > {output.teqtl}; "
+        "zcat {input.cisfile} | cut -f 1 | tail -n +2 > {output.ceqtl}; "
+        "grep -xf {output.teqtl} {output.ceqtl} | sort | uniq > {output.res1};"
+        
+
+rule find_trans_not_cis:
+    input:
+        teqtl="{results_dir}/{tshort}/teqtl.list",
+        tcis="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+    output:
+        tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.txt"
+    shell:
+        "grep -vxf {input.tcis} {input.teqtl} | sort | uniq > {output.tnot}"
+
+
+def get_dhs_params(wildcards):
+    return dict({ "dhsfile":config[wildcards.dhstype]["file"], "annot":config[wildcards.dhstype]["params"] })
+
+rule calc_dhs_background:
+    input:
+        "{results_dir}/{tshort}/snps_list.txt"
+    params:
+        p=get_dhs_params
+    output:
+        "{results_dir}/{tshort}/{dhstype}/background.txt"
+    shell:
+        "python calc_dhs_background.py --in {input} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output}"
+
+rule calc_dhs_enrichment:
+    input:
+        transfile="{results_dir}/{tshort}/{snpgroup}.txt",
+        bg="{results_dir}/{tshort}/{dhstype}/background.txt"
+    params:
+        p=get_dhs_params
+    output:
+        res="{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt"
+    shell:
+        "python scripts/calc_dhs_enrichment.py --in {input.transfile} --bg {input.bg} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output.res}"
