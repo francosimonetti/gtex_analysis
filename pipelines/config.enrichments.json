@@ -4,7 +4,8 @@
         "params": "--annotated"
     },
     "dhsmulti": {
-        "file": "multi-tissue.master.ntypes.simple.hg19_hglift_hg38_clean_sorted.bed",
+        "file": "/cbscratch/franco/datasets/multi-tissue.master.ntypes.simple.hg19_hglift_hg38_clean_sorted.bed",
         "params": ""
-    }
+    },
+    "python" : "/cbscratch/franco/envs/pyenv37/bin/python"
 }

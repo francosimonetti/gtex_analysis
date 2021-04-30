@@ -1,6 +1,10 @@
 import os, sys
+import argparse
+import collections
+import numpy as np
+import scipy.stats as ss
 
-SNPRES_FIELDS = ['rsid', 'chrom', 'pos', 'logp', 'target', 'maf']
+SNPRES_FIELDS = ['rsid', 'chrom', 'pos', 'logp', 'maf']
 class SNPRes(collections.namedtuple('_SNPRes', SNPRES_FIELDS)):
     __slots__ = ()
 
@@ -10,6 +14,75 @@ class SNPRes(collections.namedtuple('_SNPRes', SNPRES_FIELDS)):
 # calc dhs
 # - is it multi tissue? different script?
 # write output with enrichment and p-value and nº SNPs in DHS and fraction
+
+def find_annotated(res_dict, dhs_file, isannotated=False):
+    dhs = open(dhs_file)
+    line = dhs.readline()
+    prev_chrm = 0
+    nannot = 0
+    nannot_type = collections.defaultdict(int)
+
+    sorted_res_dict = dict()
+    for chrm in range(1,23):
+        sorted_res_dict[chrm] = sorted(res_dict[chrm])
+
+    while line:
+        arr = line.rstrip().split("\t")
+        if arr[0][3:] == "X" or arr[0][3:] == "Y":
+            line = dhs.readline()
+            continue
+        chrm = int(arr[0][3:])
+        start = int(arr[1])
+        end = int(arr[2])
+        if isannotated:
+            atype = arr[9]
+        if chrm != prev_chrm:
+            remaining = sorted_res_dict[chrm]
+            checked = 0
+        if len(remaining) == 0:
+            ## No more SNPs in this chromosome, just continue reading the DHS file
+            line = dhs.readline()
+        else:
+            for pos in remaining:
+                if pos < start:
+                    checked += 1
+                    remaining = sorted_res_dict[chrm][checked:]
+                    continue # go to next SNP
+                elif pos > end:
+                    line = dhs.readline()
+                    break # go to next DHS line, keep checking the remaining results
+                else:
+                    # this is an annotated SNP
+                    checked += 1
+                    remaining = sorted_res_dict[chrm][checked:]
+                    nannot += 1
+                    if isannotated:
+                        nannot_type[atype] += 1
+                    continue # go to next SNP
+        prev_chrm = chrm
+    dhs.close()
+    return nannot, nannot_type
+
+def tejaas(filepath):
+    res = list()
+    with open(filepath, 'r') as mfile:
+        next(mfile)
+        for line in mfile:
+            arr   = line.strip().split("\t")
+            rsid  = arr[0]
+            chrom = int(arr[1])
+            pos   = int(arr[2])
+            maf   = float(arr[3])
+            q     = float(arr[4])
+            mu    = float(arr[5])
+            sigma = float(arr[6])
+            p     = float(arr[7])
+            if sigma == 0:
+                continue
+            logp  = np.log10(p) if p != 0 else pvalue( (q - mu) / sigma)
+            res.append(SNPRes(rsid=rsid, chrom=chrom, pos=pos, logp=-logp, maf=maf))
+    return res
+
 
 def parse_args():
 
@@ -45,8 +118,8 @@ def parse_args():
 
 if __name__ == '__main__':
 
-    opts = parse_args()
-    allsnps_file = opts.input
+    opts         = parse_args()
+    eqtl_file    = opts.input
     dhs_file     = opts.dhsfile
     outputfile   = opts.output
     isannotated  = opts.annotated
@@ -54,6 +127,10 @@ if __name__ == '__main__':
 
     dhs_frac_rand = dict()
     dhs_frac_type_rand = dict()
+    type_master_list = ["Cancer / epithelial","Cardiac","Digestive","Lymphoid","Musculoskeletal",\
+                    "Myeloid / erythroid","Neural","Organ devel. / renal","Placental / trophoblast",\
+                    "Primitive / embryonic","Pulmonary devel.", \
+                    "Renal / cancer","Stromal A","Stromal B","Tissue invariant","Vascular / endothelial"]    
 
     if os.path.exists(master_bg_file):
         dhs_frac_type_rand = collections.defaultdict(dict)
@@ -78,13 +155,13 @@ if __name__ == '__main__':
     pval_binom = collections.defaultdict(dict)
     
     
-    filefmt = f'{resdir}/{tissue}/{trans_eqtls_file}'
-    if not os.path.exists(filefmt):
-        print("File does not exist", filefmt)
+    if not os.path.exists(eqtl_file):
+        print("File does not exist", eqtl_file)
         raise
-    trans_eqtls = tejaas(filefmt)
+    trans_eqtls = tejaas(eqtl_file)
     
     dhs_annotated = 0
+    min_trans_eqtl = 0
     if len(trans_eqtls) > min_trans_eqtl:
         res_dict = dict()
         for chrm in range(1, 23):

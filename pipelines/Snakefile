@@ -15,12 +15,7 @@ def get_ciseqtl_inputs(wildcards):
 
 rule all:
     input:
-        # expand("{results_dir}/{tshort}/trans_not_cis_eqtl.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir),
-        # expand("{results_dir}/{tshort}/{dhstype}/background.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES),
-        # expand("{results_dir}/{tshort}/{dhstype}/enrichment.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES)
-        #expand("{results_dir}/{tshort}/trans_not_cis_eqtl.txt", tshort=["aa", "as"], results_dir=results_dir),
-        #expand("{results_dir}/{tshort}/{dhstype}/background.txt", tshort=["aa", "as"], results_dir=results_dir, dhstype=DHSTYPES),
-        expand("{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt", tshort=["aa"], results_dir=results_dir, dhstype=DHSTYPES, snpgroup=SNPGROUPS)
+        expand("{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES, snpgroup=SNPGROUPS)
 
 rule find_trans_cis:
     input:
@@ -29,21 +24,29 @@ rule find_trans_cis:
     output:
         teqtl="{results_dir}/{tshort}/teqtl.list",
         ceqtl="{results_dir}/{tshort}/ceqtl.list",
-        res1="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+        res1="{results_dir}/{tshort}/trans_cis_eqtl.list",
+        tejaas="{results_dir}/{tshort}/trans_cis_eqtl.txt"
     shell:
         "cut -f 1 {input.transfile} | tail -n +2 > {output.teqtl}; "
+        "sleep 2; "
         "zcat {input.cisfile} | cut -f 1 | tail -n +2 > {output.ceqtl}; "
-        "grep -xf {output.teqtl} {output.ceqtl} | sort | uniq > {output.res1};"
-        
+        "sleep 2; "
+        "grep -wf {output.teqtl} {output.ceqtl} | sort | uniq > {output.res1}; "
+        "sleep 2; "
+        "grep -wf {output.res1} {input.transfile} > {output.tejaas}"
 
 rule find_trans_not_cis:
     input:
+        transfile="{results_dir}/{tshort}/trans_eqtls.txt",
         teqtl="{results_dir}/{tshort}/teqtl.list",
-        tcis="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+        tcis="{results_dir}/{tshort}/trans_cis_eqtl.list"
     output:
-        tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.txt"
+        tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.list",
+        tejaas_tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.txt"
     shell:
-        "grep -vxf {input.tcis} {input.teqtl} | sort | uniq > {output.tnot}"
+        "grep -vwf {input.tcis} {input.teqtl} | sort | uniq > {output.tnot}; "
+        "sleep 2; "
+        "grep -wf {output.tnot} {input.transfile} > {output.tejaas_tnot}"
 
 
 def get_dhs_params(wildcards):
@@ -57,7 +60,7 @@ rule calc_dhs_background:
     output:
         "{results_dir}/{tshort}/{dhstype}/background.txt"
     shell:
-        "python calc_dhs_background.py --in {input} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output}"
+        "{config[python]} scripts/calc_dhs_background.py --in {input} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output}"
 
 rule calc_dhs_enrichment:
     input:
@@ -68,4 +71,4 @@ rule calc_dhs_enrichment:
     output:
         res="{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt"
     shell:
-        "python scripts/calc_dhs_enrichment.py --in {input.transfile} --bg {input.bg} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output.res}"
+        "{config[python]} scripts/calc_dhs_enrichment.py --in {input.transfile} --bg {input.bg} --dhs {params.p[dhsfile]} {params.p[annot]} --out {output.res}"

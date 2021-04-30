@@ -1,0 +1,6 @@
+{
+    "SBATCH_DEFAULTS": "",
+    "CLUSTER_NAME": "",
+    "CLUSTER_CONFIG": "/cbscratch/franco/gtex_analysis/pipelines/slurm/cluster_config.yml",
+    "ADVANCED_ARGUMENT_CONVERSION": "no"
+}
