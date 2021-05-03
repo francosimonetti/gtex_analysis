@@ -66,8 +66,9 @@ def find_annotated(res_dict, dhs_file, isannotated=False):
 def tejaas(filepath):
     res = list()
     with open(filepath, 'r') as mfile:
-        next(mfile)
         for line in mfile:
+            if not line.startswith("chr"):
+                continue
             arr   = line.strip().split("\t")
             rsid  = arr[0]
             chrom = int(arr[1])

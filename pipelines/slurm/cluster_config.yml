@@ -4,6 +4,6 @@ __default__:
     nodes: 1
     ntasks: 2
     mem: "8G" # default memory
-    output: "logs/{rule}_{wildcards.tshort}-%j.out"
-    error: "logs/{rule}_{wildcards.tshort}-%j.err"
-    job-name: "{rule}_{wildcards.tshort}-%j"
+    output: "logs/{rule}_{wildcards.tshort}.out"
+    error: "logs/{rule}_{wildcards.tshort}.err"
+    # job-name: "{rule}_{wildcards.tshort}"

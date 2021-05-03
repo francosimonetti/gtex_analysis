@@ -15,38 +15,45 @@ def get_ciseqtl_inputs(wildcards):
 
 rule all:
     input:
+        #expand("{results_dir}/{tshort}/trans_not_cis_eqtl.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES, snpgroup=SNPGROUPS)
         expand("{results_dir}/{tshort}/{dhstype}/{snpgroup}_enrichment.txt", tshort=gtex_conf["tshorts"], results_dir=results_dir, dhstype=DHSTYPES, snpgroup=SNPGROUPS)
+        
 
-rule find_trans_cis:
+rule prepare_trans_cis:
     input:
         cisfile=get_ciseqtl_inputs,
         transfile="{results_dir}/{tshort}/trans_eqtls.txt"
     output:
         teqtl="{results_dir}/{tshort}/teqtl.list",
-        ceqtl="{results_dir}/{tshort}/ceqtl.list",
-        res1="{results_dir}/{tshort}/trans_cis_eqtl.list",
-        tejaas="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+        ceqtl="{results_dir}/{tshort}/ceqtl.list"
     shell:
         "cut -f 1 {input.transfile} | tail -n +2 > {output.teqtl}; "
         "sleep 2; "
         "zcat {input.cisfile} | cut -f 1 | tail -n +2 > {output.ceqtl}; "
-        "sleep 2; "
-        "grep -wf {output.teqtl} {output.ceqtl} | sort | uniq > {output.res1}; "
-        "sleep 2; "
-        "grep -wf {output.res1} {input.transfile} > {output.tejaas}"
+        
+rule find_trans_cis:
+    input:
+        transfile="{results_dir}/{tshort}/trans_eqtls.txt",
+        teqtl="{results_dir}/{tshort}/teqtl.list",
+        ceqtl="{results_dir}/{tshort}/ceqtl.list"
+    output:       
+        transcis="{results_dir}/{tshort}/trans_cis_eqtl.list",
+        tejaas="{results_dir}/{tshort}/trans_cis_eqtl.txt"
+    shell:
+        "{config[python]} scripts/find_snp_AinB.py --A {input.teqtl} --B {input.ceqtl} --out {output.transcis}; "
+        "{config[python]} scripts/find_snp_AinB.py --A {output.transcis} --B {input.transfile} --out {output.tejaas}; "
 
 rule find_trans_not_cis:
     input:
         transfile="{results_dir}/{tshort}/trans_eqtls.txt",
         teqtl="{results_dir}/{tshort}/teqtl.list",
-        tcis="{results_dir}/{tshort}/trans_cis_eqtl.list"
+        transcis="{results_dir}/{tshort}/trans_cis_eqtl.list"
     output:
         tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.list",
         tejaas_tnot="{results_dir}/{tshort}/trans_not_cis_eqtl.txt"
     shell:
-        "grep -vwf {input.tcis} {input.teqtl} | sort | uniq > {output.tnot}; "
-        "sleep 2; "
-        "grep -wf {output.tnot} {input.transfile} > {output.tejaas_tnot}"
+        "{config[python]} scripts/find_snp_AinB.py --A {input.transcis} --B {input.teqtl} --out {output.tnot} --isnot; "
+        "{config[python]} scripts/find_snp_AinB.py --A {output.tnot} --B {input.transfile} --out {output.tejaas_tnot}; "
 
 
 def get_dhs_params(wildcards):
