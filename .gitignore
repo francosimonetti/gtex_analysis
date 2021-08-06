@@ -2,4 +2,6 @@ logs/
 .snakemake/
 __pycache__/
 .ipynb_checkpoints/
+plots/
+expr_files/
 
