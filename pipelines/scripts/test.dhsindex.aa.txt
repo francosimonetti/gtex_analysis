@@ -1,0 +1,18 @@
+type	dhs_type	n_snps	dhs_frac_rand
+global	all	7636793	0.23901399999999998
+global	Cancer / epithelial	-	0.011648
+global	Cardiac	-	0.007403
+global	Digestive	-	0.009145
+global	Lymphoid	-	0.017243
+global	Musculoskeletal	-	0.014206
+global	Myeloid / erythroid	-	0.011475
+global	Neural	-	0.031076999999999997
+global	Organ devel. / renal	-	0.011412
+global	Placental / trophoblast	-	0.018992
+global	Primitive / embryonic	-	0.050256999999999996
+global	Pulmonary devel.	-	0.005782
+global	Renal / cancer	-	0.009205
+global	Stromal A	-	0.003445
+global	Stromal B	-	0.023693000000000002
+global	Tissue invariant	-	0.008745999999999999
+global	Vascular / endothelial	-	0.005285
